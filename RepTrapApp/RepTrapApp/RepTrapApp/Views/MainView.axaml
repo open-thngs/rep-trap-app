@@ -33,6 +33,13 @@
           HorizontalAlignment="Center"
           VerticalAlignment="Center"
           FontSize="30"
+          Command="{Binding UpdateFirmwareCommand}">
+          Update Firmware
+      </Button>
+      <Button
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          FontSize="30"
           Command="{Binding TriggerCommand}">
           Trigger
       </Button>
