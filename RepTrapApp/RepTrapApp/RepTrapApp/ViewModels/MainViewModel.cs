@@ -4,12 +4,13 @@ using System.Net.Http;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Maui.ApplicationModel;
 using Plugin.BLE;
+using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
+using Plugin.BLE.Abstractions.EventArgs;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
@@ -20,7 +21,7 @@ public class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         InitCommands();
-        this.WhenActivated(InitProperties);
+        this.WhenActivated(OnActivated);
     }
 
     private void InitCommands()
@@ -85,6 +86,18 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    private void OnActivated(CompositeDisposable disposables)
+    {
+        InitProperties(disposables);
+        StartScanningForDevicesAsync().Ignore();
+    }
+
+    private async Task StartScanningForDevicesAsync()
+    {
+        await Permissions.RequestAsync<Permissions.Bluetooth>();
+        await BleAdapter.StartScanningForDevicesAsync(new ScanFilterOptions { ServiceUuids = [ Guid.Parse("00007017-0000-1000-8000-00805f9b34fb") ] }); // ESP32 id: 0000c532-0000-1000-8000-00805f9b34fb
+    }
+
     private void InitProperties(CompositeDisposable disposables)
     {
         InitDeviceServiceProperty(disposables);
@@ -98,12 +111,13 @@ public class MainViewModel : ViewModelBase
 
     private void InitDeviceServiceProperty(CompositeDisposable disposables)
     {
-        Permissions
-            .RequestAsync<Permissions.Bluetooth>()
-            .ToObservable()
-            .SelectMany(_ => CrossBluetoothLE.Current.Adapter.ConnectToKnownDeviceAsync(Guid.Parse("00000000-0000-0000-0000-dc5475f1e1b6"))) // iOS: 36c8e420-24ee-773d-7910-4fdfb981a17e
+        Observable
+            .FromEventPattern<EventHandler<DeviceEventArgs>, DeviceEventArgs>(x => BleAdapter.DeviceDiscovered += x, x => BleAdapter.DeviceDiscovered -= x)
+            .Select(x => x.EventArgs.Device)
+            .FirstAsync()
+            .SelectMany(x => BleAdapter.ConnectToKnownDeviceAsync(x.Id))
             .Do(async x => await x.RequestMtuAsync(512))
-            .SelectMany(x => x.GetServiceAsync(Guid.Parse("00007017-0000-1000-8000-00805f9b34fb")))
+            .SelectMany(x => x.GetServiceAsync(Guid.Parse("00007017-0000-1000-8000-00805f9b34fb"))) // ESP32 id: 0000c532-0000-1000-8000-00805f9b34fb
             .ToPropertyEx(this, x => x.DeviceService)
             .DisposeWith(disposables);
     }
@@ -112,7 +126,7 @@ public class MainViewModel : ViewModelBase
     {
         this.WhenAnyValue(x => x.DeviceService)
             .WhereNotNull()
-            .SelectMany(x => x.GetCharacteristicAsync(Guid.Parse("00007018-0000-1000-8000-00805f9b34fb")))
+            .SelectMany(x => x.GetCharacteristicAsync(Guid.Parse("00007018-0000-1000-8000-00805f9b34fb"))) // ESP32 id: 0000c540-0000-1000-8000-00805f9b34fb
             .ToPropertyEx(this, x => x.CommandCharacteristic)
             .DisposeWith(disposables);
     }
@@ -164,6 +178,8 @@ public class MainViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit>? TriggerCommand { get; private set; }
     public ReactiveCommand<Unit, Unit>? UpdateFirmwareCommand { get; private set; }
     public extern string State { [ObservableAsProperty] get; }
+
+    private IAdapter BleAdapter => CrossBluetoothLE.Current.Adapter;
     private extern IService? DeviceService { [ObservableAsProperty] get; }
     private extern ICharacteristic? CommandCharacteristic { [ObservableAsProperty] get; }
     private extern ICharacteristic? FirmwareCharacteristic { [ObservableAsProperty] get; }
