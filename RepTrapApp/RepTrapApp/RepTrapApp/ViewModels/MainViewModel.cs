@@ -7,6 +7,8 @@ using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Maui.ApplicationModel;
+using MsBox.Avalonia;
+using MsBox.Avalonia.Enums;
 using Plugin.BLE;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
@@ -26,8 +28,6 @@ public class MainViewModel : ViewModelBase
 
     private void InitCommands()
     {
-        // TODO: handle errors
-
         TriggerCommand = ReactiveCommand.CreateFromTask(TriggerAsync);
         UpdateFirmwareCommand = ReactiveCommand.CreateFromTask(UpdateFirmwareAsync);
         // TriggerCommand = ReactiveCommand.CreateFromTask(SendConfigSettingAsync);
@@ -88,14 +88,19 @@ public class MainViewModel : ViewModelBase
 
     private void OnActivated(CompositeDisposable disposables)
     {
+        InitCommandErrorHandling(disposables);
         InitProperties(disposables);
         StartScanningForDevicesAsync().Ignore();
     }
 
-    private async Task StartScanningForDevicesAsync()
+    private void InitCommandErrorHandling(CompositeDisposable disposables)
     {
-        await Permissions.RequestAsync<Permissions.Bluetooth>();
-        await BleAdapter.StartScanningForDevicesAsync(new ScanFilterOptions { ServiceUuids = [ Guid.Parse("00007017-0000-1000-8000-00805f9b34fb") ] }); // ESP32 id: 0000c532-0000-1000-8000-00805f9b34fb
+        Observable
+            .Merge(
+                UpdateFirmwareCommand!.ThrownExceptions,
+                TriggerCommand!.ThrownExceptions)
+            .Subscribe(e => MessageBoxManager.GetMessageBoxStandard("Fehler", $"Leider ist folgender Fehler aufgetreten:\n{e.Message}", ButtonEnum.Ok).ShowAsync())
+            .DisposeWith(disposables);
     }
 
     private void InitProperties(CompositeDisposable disposables)
@@ -173,6 +178,12 @@ public class MainViewModel : ViewModelBase
             .Select(x => x is null ? "Connecting.." : "Connected")
             .ToPropertyEx(this, x => x.State)
             .DisposeWith(disposables);
+    }
+
+    private async Task StartScanningForDevicesAsync()
+    {
+        await Permissions.RequestAsync<Permissions.Bluetooth>();
+        await BleAdapter.StartScanningForDevicesAsync(new ScanFilterOptions { ServiceUuids = [ Guid.Parse("00007017-0000-1000-8000-00805f9b34fb") ] }); // ESP32 id: 0000c532-0000-1000-8000-00805f9b34fb
     }
 
     public ReactiveCommand<Unit, Unit>? TriggerCommand { get; private set; }
