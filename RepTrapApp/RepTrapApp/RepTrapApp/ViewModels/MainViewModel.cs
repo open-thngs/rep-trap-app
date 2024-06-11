@@ -30,7 +30,10 @@ public class MainViewModel : ViewModelBase
     {
         TriggerCommand = ReactiveCommand.CreateFromTask(TriggerAsync);
         UpdateFirmwareCommand = ReactiveCommand.CreateFromTask(UpdateFirmwareAsync);
-        // TriggerCommand = ReactiveCommand.CreateFromTask(SendConfigSettingAsync);
+        SetSignalThresholdCommand = ReactiveCommand.CreateFromTask<string, Unit>(x => SendConfigSettingAsync(0xa0, ushort.Parse(x)));
+        SetSigmaThresholdCommand = ReactiveCommand.CreateFromTask<string, Unit>(x => SendConfigSettingAsync(0xa1, ushort.Parse(x)));
+        SetTimeToMeasureCommand = ReactiveCommand.CreateFromTask<string, Unit>(x => SendConfigSettingAsync(0xa2, ushort.Parse(x)));
+        SetMeasureIntervalCommand = ReactiveCommand.CreateFromTask<string, Unit>(x => SendConfigSettingAsync(0xa3, ushort.Parse(x)));
     }
 
     private async Task TriggerAsync()
@@ -74,16 +77,16 @@ public class MainViewModel : ViewModelBase
         return await response.Content.ReadAsByteArrayAsync();
     }
 
-    private async Task SendConfigSettingAsync()
+    private async Task<Unit> SendConfigSettingAsync(byte config, ushort value)
     {
         if(ConfigCharacteristic is not null) {
-            ushort val = 5000;
             var byteArray = new byte[3];
-            byteArray[0] = 0xa0;
-            byteArray[1] = (byte)(val >> 8);
-            byteArray[2] = (byte)(val & 0xff);
+            byteArray[0] = config;
+            byteArray[1] = (byte)(value >> 8);
+            byteArray[2] = (byte)(value & 0xff);
             await ConfigCharacteristic.WriteAsync(byteArray);
         }
+        return Unit.Default;
     }
 
     private void OnActivated(CompositeDisposable disposables)
@@ -98,7 +101,11 @@ public class MainViewModel : ViewModelBase
         Observable
             .Merge(
                 UpdateFirmwareCommand!.ThrownExceptions,
-                TriggerCommand!.ThrownExceptions)
+                TriggerCommand!.ThrownExceptions,
+                SetSignalThresholdCommand!.ThrownExceptions,
+                SetSigmaThresholdCommand!.ThrownExceptions,
+                SetTimeToMeasureCommand!.ThrownExceptions,
+                SetMeasureIntervalCommand!.ThrownExceptions)
             .Subscribe(e => MessageBoxManager.GetMessageBoxStandard("Fehler", $"Leider ist folgender Fehler aufgetreten:\n{e.Message}", ButtonEnum.Ok).ShowAsync())
             .DisposeWith(disposables);
     }
@@ -188,6 +195,10 @@ public class MainViewModel : ViewModelBase
 
     public ReactiveCommand<Unit, Unit>? TriggerCommand { get; private set; }
     public ReactiveCommand<Unit, Unit>? UpdateFirmwareCommand { get; private set; }
+    public ReactiveCommand<string, Unit>? SetSignalThresholdCommand { get; private set; }
+    public ReactiveCommand<string, Unit>? SetSigmaThresholdCommand { get; private set; }
+    public ReactiveCommand<string, Unit>? SetTimeToMeasureCommand { get; private set; }
+    public ReactiveCommand<string, Unit>? SetMeasureIntervalCommand { get; private set; }
     public extern string State { [ObservableAsProperty] get; }
 
     private IAdapter BleAdapter => CrossBluetoothLE.Current.Adapter;

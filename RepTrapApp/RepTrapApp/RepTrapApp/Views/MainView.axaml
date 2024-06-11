@@ -39,9 +39,38 @@
       <Button
           HorizontalAlignment="Center"
           VerticalAlignment="Center"
+          Margin="0,0,0,20"
           FontSize="30"
           Command="{Binding TriggerCommand}">
           Trigger
       </Button>
+      <StackPanel
+          Orientation="Horizontal"
+          Spacing="10">
+          <TextBlock Text="Signal Threshold:" VerticalAlignment="Center" />
+          <TextBox x:Name="signalThreshold" />
+          <Button Command="{Binding SetSignalThresholdCommand}" CommandParameter="{Binding #signalThreshold.Text}">Send</Button>
+      </StackPanel>
+      <StackPanel
+          Orientation="Horizontal"
+          Spacing="10">
+          <TextBlock Text="Sigma Threshold:" VerticalAlignment="Center" />
+          <TextBox x:Name="sigmaThreshold" />
+          <Button Command="{Binding SetSignalThresholdCommand}" CommandParameter="{Binding #sigmaThreshold.Text}">Send</Button>
+      </StackPanel>
+      <StackPanel
+          Orientation="Horizontal"
+          Spacing="10">
+          <TextBlock Text="Time-to-measure:" VerticalAlignment="Center" />
+          <TextBox x:Name="timeToMeasure" />
+          <Button Command="{Binding SetTimeToMeasureCommand}" CommandParameter="{Binding #timeToMeasure.Text}">Send</Button>
+      </StackPanel>
+      <StackPanel
+          Orientation="Horizontal"
+          Spacing="10">
+          <TextBlock Text="Measure interval:" VerticalAlignment="Center" />
+          <TextBox x:Name="measureInterval" />
+          <Button Command="{Binding SetMeasureIntervalCommand}" CommandParameter="{Binding #measureInterval.Text}">Send</Button>
+      </StackPanel>
   </StackPanel>
 </UserControl>
